@@ -15,5 +15,6 @@ The goal here is to explore coding with AI. [A friend](https://github.com/yvoyer
 
 - Must povide an API
 - Must use a command handler
+- Must be structured as [DDD](https://www.geeksforgeeks.org/system-design/domain-driven-design-ddd/)
 - Must provide a front-end
 - Must provide tests
