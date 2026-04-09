@@ -1,6 +1,6 @@
 # Mastermind Game
 
-The goal here is to explore coding with AI.
+The goal here is to explore coding with AI. [A friend](https://github.com/yvoyer/mastermind) will be doing the same, but with different technologies.
 
 ## Requirements
 
@@ -13,6 +13,3 @@ The goal here is to explore coding with AI.
 - Must use a command handler
 - Must provide a front-end
 - Must provide tests
-
-## Links
-- [Y. Voyer Mastermind project](https://github.com/yvoyer/mastermind)
