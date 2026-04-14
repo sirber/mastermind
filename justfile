@@ -1,0 +1,22 @@
+set shell := ['bash', '-cu']
+
+default:
+    @just --list
+
+dev:
+    docker compose up --build -d
+
+down:
+    docker compose down -v
+
+install:
+    docker compose run --rm app bun install
+
+logs:
+    docker compose logs -f
+
+cli:
+    docker compose exec app bash
+
+psql:
+    docker compose exec db psql -U dev -d devdb

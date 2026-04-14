@@ -1,0 +1,33 @@
+services:
+  app:
+    image: oven/bun:latest
+    restart: unless-stopped
+    working_dir: /usr/src/app
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - BUN_INSTALL_TIMEOUT=120
+    command: >
+      bash -lc "bun install || true && bun run dev --host 0.0.0.0 --port 5173"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: devdb
+    # For Postgres 18+, mount the parent directory so the image can create
+    # major-version-specific subdirectories (avoids pg_ctlcluster errors).
+    volumes:
+      - pgdata:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
