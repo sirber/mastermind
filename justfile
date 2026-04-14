@@ -4,19 +4,20 @@ default:
     @just --list
 
 dev:
-    docker compose up --build -d
+    @docker compose up --build -d
+    @echo "open http://localhost:5173"
 
 down:
-    docker compose down -v
+    @docker compose down -v
 
 install:
-    docker compose run --rm app npm ci
+    @docker compose run --rm app npm ci
 
 logs:
-    docker compose logs -f
+    @docker compose logs -f
 
 cli:
-    docker compose exec app bash
+    @docker compose exec app bash
 
 psql:
-    docker compose exec db psql -U dev -d devdb
+    @docker compose exec db psql -U dev -d devdb
