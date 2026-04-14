@@ -10,7 +10,7 @@ down:
     docker compose down -v
 
 install:
-    docker compose run --rm app bun install
+    docker compose run --rm app npm ci
 
 logs:
     docker compose logs -f

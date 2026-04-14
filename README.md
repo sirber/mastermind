@@ -7,7 +7,7 @@ The goal here is to explore coding with AI. [A friend](https://github.com/yvoyer
 - [Docker](https://docs.docker.com/engine/install/)
 
 ## Software Stack
-- [Bun](https://bun.sh/)
+- [NodeJS v24 LTS](https://nodejs.org/en)
 - [React Router](https://reactrouter.com/)
 - [React Bootstrap](https://react-bootstrap.github.io/)
 - [Prisma ORM](https://www.prisma.io/orm)

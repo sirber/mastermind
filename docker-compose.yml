@@ -1,6 +1,6 @@
 services:
   app:
-    image: oven/bun:latest
+    image: node:24
     restart: unless-stopped
     working_dir: /usr/src/app
     volumes:
@@ -9,9 +9,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - BUN_INSTALL_TIMEOUT=120
+      - NODE_ENV=development
     command: >
-      bash -lc "bun install || true && bun run dev --host 0.0.0.0 --port 5173"
+      bash -lc "npm ci || true && npm run dev -- --host 0.0.0.0 --port 5173"
     depends_on:
       - db
 
