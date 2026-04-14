@@ -5,9 +5,8 @@ services:
     working_dir: /usr/src/app
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules
     ports:
-      - "5173:5173"
+      - '5173:5173'
     environment:
       - NODE_ENV=development
     command: npm run dev -- --host 0.0.0.0
@@ -21,12 +20,10 @@ services:
       POSTGRES_USER: dev
       POSTGRES_PASSWORD: devpass
       POSTGRES_DB: devdb
-    # For Postgres 18+, mount the parent directory so the image can create
-    # major-version-specific subdirectories (avoids pg_ctlcluster errors).
     volumes:
       - pgdata:/var/lib/postgresql
     ports:
-      - "5432:5432"
+      - '5432:5432'
 
 volumes:
   pgdata:
