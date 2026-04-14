@@ -11,7 +11,7 @@ down:
     @docker compose down -v
 
 install:
-    @docker compose run --rm app npm ci
+    @docker compose run --rm app npm i
 
 logs:
     @docker compose logs -f
@@ -21,6 +21,9 @@ cli:
 
 quality:
     @docker compose run --rm app npm run quality
+
+test:
+    @docker compose run --rm app npm test
 
 lint:
     @docker compose run --rm app npm run lint
