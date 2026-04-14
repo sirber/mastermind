@@ -25,5 +25,8 @@ quality:
 lint:
     @docker compose run --rm app npm run lint
 
+lint-fix:
+    @docker compose run --rm app npm run lint:fix
+
 psql:
     @docker compose exec db psql -U dev -d devdb

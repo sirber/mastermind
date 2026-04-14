@@ -7,9 +7,10 @@
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
-    "prettier": "prettier --write .",
-    "prettier:check": "prettier --check .",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "prettier": "prettier --write . --log-level warn",
+    "prettier:check": "prettier --check . --log-level warn",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "lint:check": "eslint . --ext .js,.jsx,.ts,.tsx",
     "quality": "npm run typecheck && npm run lint && npm run prettier"
   },
   "dependencies": {
