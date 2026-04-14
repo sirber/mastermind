@@ -16,6 +16,7 @@ The goal here is to explore coding with AI. [A friend](https://github.com/yvoyer
 ## Specifications
 - Must povide an API
 - Must use a command handler
+- Must use [TDD](https://en.wikipedia.org/wiki/Test-driven_development)
 - Must be structured as [DDD](https://www.geeksforgeeks.org/system-design/domain-driven-design-ddd/)
 - Must provide a front-end
 - Must provide tests
