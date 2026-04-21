@@ -12,6 +12,7 @@ services:
       - '5173:5173'
     environment:
       - NODE_ENV=development
+      - DATABASE_URL=postgresql://dev:devpass@db:5432/devdb?schema=public
     command: bun run dev -- --host 0.0.0.0
     depends_on:
       - db
