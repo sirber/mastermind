@@ -16,6 +16,7 @@ Read this file first before making changes or giving recommendations.
   - Prisma
   - PostgreSQL
 - Core project requirements live in [`README.md`](C:/Users/sirbe/projects/mastermind/README.md).
+- Active task list lives in [`TODO.md`](C:/Users/sirbe/projects/mastermind/TODO.md).
 
 ## What Is Already Present
 
@@ -32,24 +33,6 @@ Read this file first before making changes or giving recommendations.
   - lint
   - quality
   - Prisma commands
-
-## What Is Missing
-
-- No Mastermind domain rules yet.
-- No command handler layer yet.
-- No API endpoints yet.
-- No real game flow in the UI yet.
-- No game-specific tests yet.
-
-## Preferred Next Step
-
-Implement one vertical slice end to end:
-
-1. write failing tests for `SubmitGuess`
-2. implement the domain logic
-3. add the command handler
-4. expose the API route
-5. wire a minimal UI
 
 ## Working Rules
 
