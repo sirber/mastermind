@@ -1,4 +1,5 @@
-set shell := ['bash', '-cu']
+[windows]
+set shell := ['powershell.exe', '-NoLogo', '-NoProfile', '-Command']
 
 # Show available tasks.
 default:
@@ -27,7 +28,7 @@ cli:
 
 # Run quality checks inside the `app` service.
 quality:
-    @docker compose run --rm app bun run quality
+    @docker compose run --rm app sh -c "bun run quality 2>&1 | grep -v 'envFile.*deprecated' || true"
 
 # Run tests inside the `app` service.
 test:

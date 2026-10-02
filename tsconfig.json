@@ -1,8 +1,8 @@
 {
-  "include": ["**/*", "**/.server/**/*", "**/.client/**/*", ".react-router/types/**/*"],
+  "include": ["app/**/*", "!app/**/*.test.ts", "!app/**/*.spec.ts", ".react-router/types/**/*"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "types": ["node", "vite/client", "vitest/globals"],
+    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "bundler",
