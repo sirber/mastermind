@@ -40,3 +40,10 @@ Read this file first before making changes or giving recommendations.
 - Prefer small increments.
 - Use TDD for new behavior.
 - Make the command handlers the entry point for game actions.
+
+## Coding Style
+
+- One class per file.
+- Use meaningful file names that match the class/type name.
+- Group domain code by type: entities/, valueObjects/, contracts/, errors/, services/.
+- No barrel/index files - import directly from source files.
