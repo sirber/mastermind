@@ -29,3 +29,11 @@ The goal here is to explore coding with AI. [A friend](https://github.com/yvoyer
 
 - Visual Studio Code
 - GitHub CoPilot w/ GPT 5-mini
+
+## Run the Game
+
+Run `just dev` to start the application and PostgreSQL in Docker. The app container generates
+the Prisma client on startup. Apply the database migration with
+`docker compose exec app bunx prisma migrate deploy`, then open `http://localhost:5173`.
+The game API is available at `POST /api/games`, `GET /api/games/:gameId`, and
+`POST /api/games/:gameId/guesses`.

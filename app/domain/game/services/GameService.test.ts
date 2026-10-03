@@ -144,13 +144,11 @@ describe('GameService', () => {
         );
       });
 
-      it('rejects duplicate guess', () => {
+      it('allows submitting the same guess more than once', () => {
         const game = createTestGame(['red', 'blue', 'green', 'yellow']);
         GameService.submitGuess(game, g(['red', 'red', 'red', 'red']));
 
-        expect(() => GameService.submitGuess(game, g(['red', 'red', 'red', 'red']))).toThrow(
-          'Duplicate guess'
-        );
+        expect(() => GameService.submitGuess(game, g(['red', 'red', 'red', 'red']))).not.toThrow();
       });
     });
 
@@ -210,6 +208,10 @@ describe('GameService', () => {
       const game = GameService.createGame('test-456');
 
       expect(game.maxAttempts).toBe(10);
+    });
+
+    it.each([0, -1, 1.5, Number.NaN])('rejects invalid maxAttempts: %s', (maxAttempts) => {
+      expect(() => GameService.createGame('test-invalid', maxAttempts)).toThrow(RangeError);
     });
   });
 });

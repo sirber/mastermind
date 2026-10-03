@@ -1,0 +1,12 @@
+ALTER TABLE "Game"
+ADD COLUMN "secretCode" JSONB NOT NULL DEFAULT '{"colors":["red","blue","green","yellow"]}',
+ADD COLUMN "maxAttempts" INTEGER NOT NULL DEFAULT 10,
+ADD COLUMN "attemptsUsed" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "guesses" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN "feedbacks" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN "status" TEXT NOT NULL DEFAULT 'in_progress';
+
+ALTER TABLE "Game"
+ALTER COLUMN "secretCode" DROP DEFAULT,
+ALTER COLUMN "guesses" DROP DEFAULT,
+ALTER COLUMN "feedbacks" DROP DEFAULT;

@@ -2,55 +2,19 @@
 
 This file is the working task list for the Mastermind project.
 
-## Current Gaps
+## Completed: First Playable Vertical Slice
 
-- No Mastermind domain rules yet.
-- No command handler layer yet.
-- No API endpoints yet.
-- No real game flow in the UI yet.
-- No game-specific tests yet.
+- Domain rules and unit tests for `SubmitGuess`
+- `StartGame` and `SubmitGuess` command handlers
+- Persistent game state in PostgreSQL through Prisma
+- API routes to start a game, read public state, and submit a guess
+- Minimal French UI with feedback and attempt tracking
+- Command handler and API route tests
 
-## Next Vertical Slice
-
-Implement one playable slice end to end:
-
-1. write failing tests for `SubmitGuess`
-2. implement the domain logic
-3. add the command handler
-4. expose the API route
-5. wire a minimal UI
-
-## Suggested Breakdown
+## Follow-up Work
 
 ### Domain
 
-- define `Game`
-- define `SecretCode`
-- define `Guess`
-- define feedback/result rules
-- define win and lose conditions
-
-### Application
-
-- create `StartGame` command handler
-- create `SubmitGuess` command handler
-- keep business logic out of React routes
-
-### API
-
-- create a route to start a game
-- create a route to submit a guess
-- create a route to read game state
-
-### UI
-
-- create a simple start-game screen
-- create a guess input form
-- display feedback for each guess
-- display game status
-
-### Tests
-
-- add domain unit tests
-- add command handler tests
-- add route or API integration tests
+- Consider stronger runtime validation for persisted game data
+- Add player identity and associate games with players when authentication is introduced
+- Add database-backed API integration tests

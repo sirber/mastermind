@@ -5,7 +5,6 @@ import type { Feedback } from '../valueObjects/Feedback';
 import type { Game } from '../entities/Game';
 import type { SubmitGuessResult } from '../contracts/SubmitGuessResult';
 
-import { DuplicateGuessError } from '../errors/DuplicateGuessError';
 import { GameOverError } from '../errors/GameOverError';
 import { MaxAttemptsError } from '../errors/MaxAttemptsError';
 
@@ -13,6 +12,10 @@ export class GameService {
   static CODE_LENGTH = 4;
 
   static createGame(id: string, maxAttempts: number = 10): Game {
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+      throw new RangeError('Maximum attempts must be a positive integer');
+    }
+
     const allColors: Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
     const secretColors: Color[] = [];
     for (let i = 0; i < this.CODE_LENGTH; i++) {
@@ -86,11 +89,6 @@ export class GameService {
 
     if (game.attemptsUsed >= game.maxAttempts) {
       throw new MaxAttemptsError();
-    }
-
-    const existingGuess = game.guesses.find((g) => g.colors.every((c, i) => c === guess.colors[i]));
-    if (existingGuess) {
-      throw new DuplicateGuessError();
     }
 
     const feedback = this.calculateFeedback(game.secretCode, guess);

@@ -1,0 +1,25 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { action } from './api.games';
+import { startGame } from '../api/gameHandlers';
+
+vi.mock('../api/gameHandlers', () => ({
+  startGame: { handle: vi.fn() },
+  submitGuess: { handle: vi.fn() },
+  getGame: { handle: vi.fn() },
+}));
+
+describe('POST /api/games', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('starts a game and returns its id', async () => {
+    vi.mocked(startGame.handle).mockResolvedValue('game-1');
+
+    const response = await action({
+      request: new Request('http://local/api/games', { method: 'POST' }),
+    } as never);
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({ gameId: 'game-1' });
+    expect(startGame.handle).toHaveBeenCalledOnce();
+  });
+});
