@@ -1,7 +1,11 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { InvalidEmailError } from '../domain/player/errors/InvalidEmailError';
-import { clearPlayerSessionCookie, createPlayerSessionCookie, playerIdFromRequest } from '../api/playerSession';
-import { getPlayerById, loginWithEmail } from '../api/playerHandlers';
+import {
+  clearPlayerSessionCookie,
+  createPlayerSessionCookie,
+  playerIdFromRequest,
+} from '../api/playerSession';
+import { getPlayerById, loginWithEmail, playAsGuest } from '../api/playerHandlers';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const playerId = playerIdFromRequest(request);
@@ -15,7 +19,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }
 
-  return Response.json({ player: { id: player.id, email: player.email.value } });
+  return Response.json(
+    { player: { id: player.id, email: player.email?.value ?? null } },
+    { headers: { 'Cache-Control': 'no-store' } }
+  );
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -35,14 +42,29 @@ export async function action({ request }: ActionFunctionArgs) {
   } catch {
     return Response.json({ error: 'Request body must be valid JSON' }, { status: 400 });
   }
-  if (typeof body !== 'object' || body === null || !('email' in body) || typeof body.email !== 'string') {
+  if (typeof body === 'object' && body !== null && 'guest' in body && body.guest === true) {
+    // Do not replace a valid registered or guest session with a fresh guest.
+    const playerId = playerIdFromRequest(request);
+    const existing = playerId ? await getPlayerById(playerId) : null;
+    const player = existing ?? (await playAsGuest.handle());
+    return Response.json(
+      { player: { id: player.id, email: player.email?.value ?? null } },
+      { headers: { 'Set-Cookie': createPlayerSessionCookie(player.id) } }
+    );
+  }
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('email' in body) ||
+    typeof body.email !== 'string'
+  ) {
     return Response.json({ error: 'Email is required' }, { status: 400 });
   }
 
   try {
     const player = await loginWithEmail.handle(body.email);
     return Response.json(
-      { player: { id: player.id, email: player.email.value } },
+      { player: { id: player.id, email: player.email?.value ?? null } },
       { headers: { 'Set-Cookie': createPlayerSessionCookie(player.id) } }
     );
   } catch (error) {

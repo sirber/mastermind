@@ -194,6 +194,58 @@ describe('email sign-in focus', () => {
 });
 
 describe('Bootstrap home UI', () => {
+  it('offers optional email sign-in and starts a guest game without collecting an email', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ player: { id: 'guest-1', email: null } }))
+      .mockResolvedValueOnce(Response.json({ gameId: 'guest-game' }))
+      .mockResolvedValueOnce(
+        Response.json({
+          id: 'guest-game',
+          status: 'in_progress',
+          attemptsUsed: 0,
+          maxAttempts: 10,
+          guesses: [],
+          feedbacks: [],
+        })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+    expect(await screen.findByLabelText('Adresse e-mail')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Jouer sans e-mail' }));
+    expect(await screen.findByText('Invité')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Proposer' })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guest: true }),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/games', { method: 'POST' });
+  });
+
+  it('shows guest session failures without starting a game', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        Response.json({ error: 'Impossible de créer un invité' }, { status: 500 })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Jouer sans e-mail' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de créer un invité');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('announces session loading with a Bootstrap spinner', () => {
     vi.stubGlobal(
       'fetch',

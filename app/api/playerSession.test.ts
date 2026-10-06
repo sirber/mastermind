@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearPlayerSessionCookie,
   createPlayerSessionCookie,
@@ -12,11 +12,44 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   if (originalSecret === undefined) delete process.env.SESSION_SECRET;
   else process.env.SESSION_SECRET = originalSecret;
 });
 
 describe('player sessions', () => {
+  it('rejects changing the signed guest player ID to another identity', () => {
+    const cookie = createPlayerSessionCookie('guest-1').split(';')[0];
+    const token = cookie.slice(cookie.indexOf('=') + 1);
+    const [payload, signature] = token.split('.');
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    data.playerId = 'registered-player';
+    const forged = Buffer.from(JSON.stringify(data)).toString('base64url');
+    expect(
+      playerIdFromRequest(
+        new Request('http://local', {
+          headers: { Cookie: `mastermind_session=${forged}.${signature}` },
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('rejects expired guest sessions', () => {
+    vi.useFakeTimers();
+    const cookie = createPlayerSessionCookie('guest-1').split(';')[0];
+    vi.advanceTimersByTime(30 * 24 * 60 * 60 * 1000);
+    expect(
+      playerIdFromRequest(new Request('http://local', { headers: { Cookie: cookie } }))
+    ).toBeNull();
+  });
+
+  it('rejects noncanonical signature encodings even if they decode to the same bytes', () => {
+    const cookie = createPlayerSessionCookie('guest-1').split(';')[0];
+    expect(
+      playerIdFromRequest(new Request('http://local', { headers: { Cookie: `${cookie}=` } }))
+    ).toBeNull();
+  });
+
   it('signs a player session in an HttpOnly, same-site cookie', () => {
     const cookie = createPlayerSessionCookie('player-1');
     const request = new Request('http://local', { headers: { Cookie: cookie.split(';')[0] } });

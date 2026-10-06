@@ -26,8 +26,26 @@ Read this file first before making changes or giving recommendations.
   - `Player`
   - `Game`
   - `GamePlayer`
-- The React app provides a Mastermind game UI and email-only player sign-in.
-- Games are associated with their creating player and require that player's signed session.
+- The React Bootstrap app offers optional email sign-in or immediate anonymous guest play.
+- Guests are persisted `Player` records with null email and server-generated UUIDs. Email
+  players retain their normalized unique email. Both use the unchanged signed session cookie.
+- Games are associated with their creating player through `GamePlayer` and require that player's
+  signed session; cross-player reads/writes return 404. Invalid/absent cookies return 401.
+- `PlayAsGuestCommandHandler` creates guest identities. POST `/api/session` accepts `{ guest: true }`
+  or `{ email }`; a valid existing session is retained when guest play is requested again.
+- Guest games are never transferred to email accounts. Cookie loss/logout/30-day expiry loses
+  guest access; no automated guest cleanup is implemented.
+- Public GET `/api/leaderboard` uses `PrismaLeaderboardRepository` and `GetLeaderboardQueryHandler`.
+  Only persisted `won` games for non-null-email players count: wins descending, average winning
+  attempts ascending, player ID lexicographically ascending; sequential ranks. Stable hashed-ID
+  aliases hide emails and IDs. No game secrets are loaded for ranking.
+- Home's `Leaderboard` Bootstrap component loads ranking on demand and refreshes an open panel
+  after a win; loading/empty/error/retry states are tested.
+- Migration `20261005210000_allow_guest_players` only drops email NOT NULL; existing data,
+  unique email index, game ownership and registered cookies remain valid. Apply before guest play
+  and regenerate Prisma types.
+- Email sign-in remains development-only and unverified; use verified mailbox ownership before
+  production authorization. Keep `SESSION_SECRET` private (32+ characters).
 - Tooling exists for:
   - dev
   - test

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { action, loader } from './api.session';
-import { getPlayerById, loginWithEmail } from '../api/playerHandlers';
+import { getPlayerById, loginWithEmail, playAsGuest } from '../api/playerHandlers';
 import { InvalidEmailError } from '../domain/player/errors/InvalidEmailError';
 
 vi.mock('../api/playerHandlers', () => ({
   loginWithEmail: { handle: vi.fn() },
+  playAsGuest: { handle: vi.fn() },
   getPlayerById: vi.fn(),
 }));
 
@@ -16,6 +17,60 @@ vi.mock('../api/playerSession', () => ({
 
 describe('/api/session', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('creates a guest without email and signs its server-generated identity', async () => {
+    vi.mocked(playAsGuest.handle).mockResolvedValueOnce({
+      id: 'guest-1',
+      email: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const response = await action({
+      request: new Request('http://local/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guest: true, playerId: 'attacker' }),
+      }),
+    } as never);
+    expect(playAsGuest.handle).toHaveBeenCalledWith();
+    expect(loginWithEmail.handle).not.toHaveBeenCalled();
+    expect(response.headers.get('Set-Cookie')).toContain('mastermind_session=signed');
+    await expect(response.json()).resolves.toEqual({ player: { id: 'guest-1', email: null } });
+  });
+
+  it('retains an existing signed identity when guest play is requested again', async () => {
+    const { playerIdFromRequest } = await import('../api/playerSession');
+    vi.mocked(playerIdFromRequest).mockReturnValueOnce('registered-1');
+    vi.mocked(getPlayerById).mockResolvedValueOnce({
+      id: 'registered-1',
+      email: { value: 'alice@example.com' },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const response = await action({
+      request: new Request('http://local/api/session', {
+        method: 'POST',
+        body: JSON.stringify({ guest: true }),
+      }),
+    } as never);
+    expect(playAsGuest.handle).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      player: { id: 'registered-1', email: 'alice@example.com' },
+    });
+  });
+
+  it('resolves a persisted guest through the existing signed session', async () => {
+    const { playerIdFromRequest } = await import('../api/playerSession');
+    vi.mocked(playerIdFromRequest).mockReturnValueOnce('guest-1');
+    vi.mocked(getPlayerById).mockResolvedValueOnce({
+      id: 'guest-1',
+      email: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const response = await loader({ request: new Request('http://local/api/session') } as never);
+    await expect(response.json()).resolves.toEqual({ player: { id: 'guest-1', email: null } });
+  });
 
   it('creates or resumes an identity using normalized email and sets a session cookie', async () => {
     vi.mocked(loginWithEmail.handle).mockResolvedValue({

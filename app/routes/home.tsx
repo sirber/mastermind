@@ -12,6 +12,7 @@ import Stack from 'react-bootstrap/Stack';
 import type { Route } from './+types/home';
 import type { GameView } from '../application/contracts/GameView';
 import type { Color } from '../domain/game/valueObjects/Color';
+import { Leaderboard } from '../components/Leaderboard';
 
 const colors: Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
 const colorLabels: Record<Color, string> = {
@@ -25,7 +26,7 @@ const colorLabels: Record<Color, string> = {
 
 interface PlayerIdentity {
   id: string;
-  email: string;
+  email: string | null;
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -173,6 +174,26 @@ export default function Home() {
     setSearchParams({});
   }
 
+  async function playAsGuest() {
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      const response = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guest: true }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? 'Impossible de jouer en invité.');
+      setPlayer(body.player as PlayerIdentity);
+      await startGame();
+    } catch (cause) {
+      setAuthError(cause instanceof Error ? cause.message : 'Erreur de connexion.');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   async function startGame() {
     setBusy(true);
     setError('');
@@ -225,7 +246,7 @@ export default function Home() {
         </div>
         {player && (
           <Stack gap={1} className="account-control align-items-end ms-auto">
-            <span>{player.email}</span>
+            <span>{player.email ?? 'Invité'}</span>
             <Button variant="link" size="sm" className="p-0" onClick={signOut} type="button">
               Déconnexion
             </Button>
@@ -242,11 +263,19 @@ export default function Home() {
             </Stack>
           ) : !player ? (
             <div className="welcome-panel">
-              <p className="eyebrow">Connexion sans mot de passe</p>
+              <p className="eyebrow">Avec ou sans compte</p>
               <h2>Entrez dans la partie.</h2>
               <p className="text-body-secondary my-3">
-                Connectez-vous avec votre adresse e-mail pour retrouver votre identité de joueur.
+                Jouez sans e-mail, ou connectez-vous pour participer au classement.
               </p>
+              <Button
+                variant="outline-primary"
+                className="mb-3"
+                onClick={playAsGuest}
+                disabled={authBusy}
+              >
+                Jouer sans e-mail
+              </Button>
               <Form className="login-form" onSubmit={signIn}>
                 <Form.Group controlId="login-email" className="mb-3">
                   <Form.Label>Adresse e-mail</Form.Label>
@@ -407,6 +436,14 @@ export default function Home() {
           )}
         </Card.Body>
       </Card>
+      {player?.email === null && (
+        <p className="text-body-secondary small mt-3">
+          Mode invité : vos victoires ne comptent pas au classement. Votre accès dépend de ce
+          navigateur et expire après 30 jours. Déconnexion ou suppression du cookie : accès perdu.
+          Déconnectez-vous pour utiliser un e-mail; les parties invitées ne seront pas transférées.
+        </p>
+      )}
+      <Leaderboard refreshKey={game?.status === 'won' ? game.id : ''} />
       <p className="game-footnote">Une combinaison de quatre couleurs, dix essais maximum.</p>
     </Container>
   );

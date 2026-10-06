@@ -54,8 +54,9 @@ export function playerIdFromRequest(request: Request): string | null {
   if (separator < 1) return null;
 
   const payload = token.slice(0, separator);
-  const suppliedSignature = Buffer.from(token.slice(separator + 1), 'base64url');
-  const expectedSignature = Buffer.from(signature(payload), 'base64url');
+  // Compare canonical encoded signatures: base64 decoding accepts altered padding bits.
+  const suppliedSignature = Buffer.from(token.slice(separator + 1));
+  const expectedSignature = Buffer.from(signature(payload));
   if (
     suppliedSignature.length !== expectedSignature.length ||
     !timingSafeEqual(suppliedSignature, expectedSignature)
