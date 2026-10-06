@@ -1,7 +1,7 @@
 FROM oven/bun:1.3.13-alpine AS development-dependencies-env
 WORKDIR /usr/src/app
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile && chown -R 1000:1000 /usr/src/app/node_modules
 
 FROM oven/bun:1.3.13-alpine AS production-dependencies-env
 WORKDIR /usr/src/app

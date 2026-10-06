@@ -32,8 +32,17 @@ The goal here is to explore coding with AI. [A friend](https://github.com/yvoyer
 
 ## Run the Game
 
-Run `just dev` to start the application and PostgreSQL in Docker. The app container generates
-the Prisma client on startup. Apply the database migration with
-`docker compose exec app bunx prisma migrate deploy`, then open `http://localhost:5173`.
+Run `just dev` to start the application and PostgreSQL with Docker Compose (or Podman Compose if
+Docker is unavailable). The app container generates the Prisma client on startup. Apply the
+database migration with `just prisma-migrate`, then open `http://localhost:5173`.
 The game API is available at `POST /api/games`, `GET /api/games/:gameId`, and
 `POST /api/games/:gameId/guesses`.
+
+Players sign in with an email address at the home page. This development sign-in does not verify
+mailbox ownership; configure a verified email link/code flow before using email identity for
+production authorization. Set `SESSION_SECRET` to a private value of at least 32 characters in
+production. Session APIs are `POST /api/session` to sign in, `GET /api/session` to check the current
+player, and `DELETE /api/session` to sign out.
+
+Run `just test` for unit and route tests. Run `just test-integration` for database-backed API tests;
+it applies pending migrations to the Compose database before testing.

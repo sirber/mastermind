@@ -30,6 +30,7 @@ describe('SubmitGuessCommandHandler', () => {
 
     const result = await handler.handle({
       gameId: game.id,
+      playerId: 'player-1',
       guess: { colors: ['red', 'red', 'red', 'red'] },
     });
 
@@ -48,6 +49,7 @@ describe('SubmitGuessCommandHandler', () => {
     await expect(
       new SubmitGuessCommandHandler(repository).handle({
         gameId: 'missing',
+        playerId: 'player-1',
         guess: { colors: ['red', 'blue', 'green', 'yellow'] },
       })
     ).rejects.toBeInstanceOf(GameNotFoundError);

@@ -20,7 +20,7 @@ describe('GetGameQueryHandler', () => {
       save: vi.fn(),
     };
 
-    const result = await new GetGameQueryHandler(repository).handle('game-1');
+    const result = await new GetGameQueryHandler(repository).handle('game-1', 'player-1');
 
     expect(result).toMatchObject({ id: 'game-1', attemptsUsed: 1, status: 'in_progress' });
     expect(result).not.toHaveProperty('secretCode');

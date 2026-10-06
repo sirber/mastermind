@@ -5,10 +5,10 @@ set default-list := true
 # Prefer Docker Compose, but fall back to Podman when Docker is unavailable.
 compose := shell('if (Get-Command docker -CommandType Application -ErrorAction SilentlyContinue) { "docker compose" } else { "podman compose" }')
 
-# Start the app (dev) via docker-compose and print the URL.
+# Start the app and print a URL reachable from the host.
 dev:
     @{{compose}} up --build -d
-    @echo "open http://localhost:5173"
+    @if (Get-Command docker -CommandType Application -ErrorAction SilentlyContinue) { Write-Output "open http://localhost:5173" } else { $line = podman machine ssh podman-machine-default ip -4 -o addr show eth0 | Select-String "inet "; $ip = ($line.ToString() -split '\s+')[3].Split('/')[0]; Write-Output "open http://$($ip):5173" }
 
 # Stop and remove containers, networks and volumes.
 down:
@@ -33,6 +33,10 @@ quality:
 # Run tests inside the `app` service.
 test:
     @{{compose}} run --rm app bun run test
+
+# Run database-backed API integration tests against the Compose PostgreSQL service.
+test-integration:
+    @{{compose}} run --rm app sh -c "bunx prisma generate && bunx prisma migrate deploy && bun run test:integration"
 
 # Run linter inside the `app` service.
 lint:

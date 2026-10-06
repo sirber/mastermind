@@ -8,6 +8,8 @@ vi.mock('../api/gameHandlers', () => ({
   getGame: { handle: vi.fn() },
 }));
 
+vi.mock('../api/playerSession', () => ({ playerIdFromRequest: vi.fn(() => 'player-1') }));
+
 describe('POST /api/games', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -20,6 +22,18 @@ describe('POST /api/games', () => {
 
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({ gameId: 'game-1' });
-    expect(startGame.handle).toHaveBeenCalledOnce();
+    expect(startGame.handle).toHaveBeenCalledWith('player-1');
+  });
+
+  it('requires a signed-in player', async () => {
+    const { playerIdFromRequest } = await import('../api/playerSession');
+    vi.mocked(playerIdFromRequest).mockReturnValueOnce(null);
+
+    const response = await action({
+      request: new Request('http://local/api/games', { method: 'POST' }),
+    } as never);
+
+    expect(response.status).toBe(401);
+    expect(startGame.handle).not.toHaveBeenCalled();
   });
 });

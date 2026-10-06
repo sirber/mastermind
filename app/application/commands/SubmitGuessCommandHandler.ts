@@ -12,7 +12,7 @@ export class SubmitGuessCommandHandler {
   }
 
   async handle(command: SubmitGuessCommand): Promise<SubmitGuessResult> {
-    const game = await this.games.findById(command.gameId);
+    const game = await this.games.findById(command.gameId, command.playerId);
     if (!game) throw new GameNotFoundError(command.gameId);
 
     const result = GameService.submitGuess(game, command.guess);

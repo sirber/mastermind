@@ -16,7 +16,7 @@ Read this file first before making changes or giving recommendations.
   - Prisma
   - PostgreSQL
 - Core project requirements live in [`README.md`](C:/Users/sirbe/projects/mastermind/README.md).
-- Active task list lives in [`TODO.md`](C:/Users/sirbe/projects/mastermind/TODO.md).
+- The working task list was removed after its actionable items were implemented.
 
 ## What Is Already Present
 
@@ -26,7 +26,8 @@ Read this file first before making changes or giving recommendations.
   - `Player`
   - `Game`
   - `GamePlayer`
-- The React app currently still shows the default welcome screen.
+- The React app provides a Mastermind game UI and email-only player sign-in.
+- Games are associated with their creating player and require that player's signed session.
 - Tooling exists for:
   - dev
   - test

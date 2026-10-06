@@ -9,9 +9,9 @@ export class StartGameCommandHandler {
     this.games = games;
   }
 
-  async handle(): Promise<string> {
+  async handle(playerId: string): Promise<string> {
     const game = GameService.createGame(randomUUID());
-    await this.games.create(game);
+    await this.games.create(game, playerId);
     return game.id;
   }
 }

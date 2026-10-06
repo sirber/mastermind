@@ -14,6 +14,11 @@ const colorLabels: Record<Color, string> = {
   orange: 'Orange',
 };
 
+interface PlayerIdentity {
+  id: string;
+  email: string;
+}
+
 export function meta({}: Route.MetaArgs) {
   return [
     { title: 'Mastermind' },
@@ -28,9 +33,38 @@ export default function Home() {
   const [guess, setGuess] = useState<Color[]>(['red', 'blue', 'green', 'yellow']);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [player, setPlayer] = useState<PlayerIdentity | null>(null);
+  const [email, setEmail] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
-    if (!gameId) {
+    let active = true;
+    fetch('/api/session')
+      .then(async (response) => {
+        if (response.status === 401) return null;
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? 'Impossible de vérifier la session.');
+        return body.player as PlayerIdentity;
+      })
+      .then((identity) => {
+        if (active) setPlayer(identity);
+      })
+      .catch((cause: unknown) => {
+        if (active) setAuthError(cause instanceof Error ? cause.message : 'Erreur de session.');
+      })
+      .finally(() => {
+        if (active) setAuthLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!gameId || !player) {
       setGame(null);
       return;
     }
@@ -55,7 +89,35 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [gameId]);
+  }, [gameId, player]);
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      const response = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? 'Impossible de se connecter.');
+      setPlayer(body.player as PlayerIdentity);
+      setEmail('');
+    } catch (cause) {
+      setAuthError(cause instanceof Error ? cause.message : 'Erreur de connexion.');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function signOut() {
+    await fetch('/api/session', { method: 'DELETE' });
+    setPlayer(null);
+    setGame(null);
+    setSearchParams({});
+  }
 
   async function startGame() {
     setBusy(true);
@@ -107,10 +169,51 @@ export default function Home() {
           <p className="eyebrow">Jeu de déduction</p>
           <h1>Mastermind</h1>
         </div>
+        {player && (
+          <div className="account-control">
+            <span>{player.email}</span>
+            <button className="text-button" onClick={signOut} type="button">
+              Déconnexion
+            </button>
+          </div>
+        )}
       </header>
 
       <section className="game-panel" aria-live="polite">
-        {!gameId ? (
+        {authLoading ? (
+          <p className="loading-state">Vérification de la session…</p>
+        ) : !player ? (
+          <div className="welcome-panel">
+            <p className="eyebrow">Connexion sans mot de passe</p>
+            <h2>Entrez dans la partie.</h2>
+            <p>Connectez-vous avec votre adresse e-mail pour retrouver votre identité de joueur.</p>
+            <form className="login-form" onSubmit={signIn}>
+              <label htmlFor="login-email">Adresse e-mail</label>
+              <input
+                id="login-email"
+                name="email"
+                type="email"
+                autoFocus
+                autoComplete="email"
+                required
+                maxLength={254}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              <button className="primary-button" disabled={authBusy}>
+                {authBusy ? 'Connexion…' : 'Continuer avec cet e-mail'}
+              </button>
+            </form>
+            <p className="auth-note">
+              Cette version ne vérifie pas que vous contrôlez cette adresse e-mail.
+            </p>
+            {authError && (
+              <p className="error-message" role="alert">
+                {authError}
+              </p>
+            )}
+          </div>
+        ) : !gameId ? (
           <div className="welcome-panel">
             <p className="eyebrow">À vous de jouer</p>
             <h2>Décodez la combinaison secrète.</h2>
@@ -214,7 +317,7 @@ export default function Home() {
             )}
           </>
         )}
-        {error && (
+        {error && player && (
           <p className="error-message" role="alert">
             {error}
           </p>

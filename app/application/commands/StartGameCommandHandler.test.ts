@@ -11,7 +11,7 @@ describe('StartGameCommandHandler', () => {
     };
     const handler = new StartGameCommandHandler(repository);
 
-    const gameId = await handler.handle();
+    const gameId = await handler.handle('player-1');
 
     expect(gameId).toBeTruthy();
     expect(repository.create).toHaveBeenCalledWith(
@@ -19,7 +19,8 @@ describe('StartGameCommandHandler', () => {
         id: gameId,
         status: 'in_progress',
         maxAttempts: 10,
-      })
+      }),
+      'player-1'
     );
   });
 });

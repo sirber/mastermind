@@ -3,8 +3,12 @@ import { GameError } from '../domain/game/errors/GameError';
 import { GameNotFoundError } from '../domain/game/errors/GameNotFoundError';
 import { parseGuess } from '../api/parseGuess';
 import { submitGuess } from '../api/gameHandlers';
+import { playerIdFromRequest } from '../api/playerSession';
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  const playerId = playerIdFromRequest(request);
+  if (!playerId) return Response.json({ error: 'Sign in required' }, { status: 401 });
+
   let body: unknown;
   try {
     body = await request.json();
@@ -18,7 +22,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    return Response.json(await submitGuess.handle({ gameId: params.gameId ?? '', guess }));
+    return Response.json(await submitGuess.handle({ gameId: params.gameId ?? '', playerId, guess }));
   } catch (error) {
     if (error instanceof GameNotFoundError) {
       return Response.json({ error: error.message }, { status: 404 });

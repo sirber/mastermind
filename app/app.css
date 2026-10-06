@@ -57,6 +57,25 @@ button:disabled {
   font-size: 24px;
   letter-spacing: -0.04em;
 }
+.account-control {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: auto;
+  color: #64716b;
+  font-size: 12px;
+}
+.text-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #173b31;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .eyebrow {
   margin: 0 0 4px;
   color: #648073;
@@ -87,6 +106,38 @@ button:disabled {
   margin: 16px 0 26px;
   color: #69747c;
   line-height: 1.65;
+}
+.login-form {
+  display: grid;
+  gap: 10px;
+  max-width: 390px;
+}
+.login-form label {
+  color: #52665b;
+  font-size: 13px;
+  font-weight: 700;
+}
+.login-form input {
+  min-height: 46px;
+  padding: 0 13px;
+  border: 1px solid #dfe4df;
+  border-radius: 11px;
+  background: #fff;
+  color: #24312b;
+}
+.login-form input:focus-visible {
+  outline: 3px solid #173b3133;
+  outline-offset: 2px;
+}
+.login-form .primary-button {
+  justify-self: start;
+  margin-top: 6px;
+}
+.auth-note {
+  margin: 16px 0 0;
+  color: #87928b;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .primary-button,
 .secondary-button {

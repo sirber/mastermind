@@ -9,8 +9,8 @@ export class GetGameQueryHandler {
     this.games = games;
   }
 
-  async handle(gameId: string): Promise<GameView> {
-    const game = await this.games.findById(gameId);
+  async handle(gameId: string, playerId: string): Promise<GameView> {
+    const game = await this.games.findById(gameId, playerId);
     if (!game) throw new GameNotFoundError(gameId);
 
     return {

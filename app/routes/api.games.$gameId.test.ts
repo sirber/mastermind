@@ -10,6 +10,8 @@ vi.mock('../api/gameHandlers', () => ({
   getGame: { handle: vi.fn() },
 }));
 
+vi.mock('../api/playerSession', () => ({ playerIdFromRequest: vi.fn(() => 'player-1') }));
+
 describe('GET /api/games/:gameId', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -25,18 +27,37 @@ describe('GET /api/games/:gameId', () => {
     } satisfies GameView;
     vi.mocked(getGame.handle).mockResolvedValue(view);
 
-    const response = await loader({ params: { gameId: 'game-1' } } as never);
+    const response = await loader({
+      params: { gameId: 'game-1' },
+      request: new Request('http://local/api/games/game-1'),
+    } as never);
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(view);
-    expect(getGame.handle).toHaveBeenCalledWith('game-1');
+    expect(getGame.handle).toHaveBeenCalledWith('game-1', 'player-1');
   });
 
   it('returns 404 for an unknown game', async () => {
     vi.mocked(getGame.handle).mockRejectedValue(new GameNotFoundError('missing'));
 
-    const response = await loader({ params: { gameId: 'missing' } } as never);
+    const response = await loader({
+      params: { gameId: 'missing' },
+      request: new Request('http://local/api/games/missing'),
+    } as never);
 
     expect(response.status).toBe(404);
+  });
+
+  it('requires a signed-in player', async () => {
+    const { playerIdFromRequest } = await import('../api/playerSession');
+    vi.mocked(playerIdFromRequest).mockReturnValueOnce(null);
+
+    const response = await loader({
+      params: { gameId: 'game-1' },
+      request: new Request('http://local/api/games/game-1'),
+    } as never);
+
+    expect(response.status).toBe(401);
+    expect(getGame.handle).not.toHaveBeenCalled();
   });
 });

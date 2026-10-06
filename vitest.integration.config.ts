@@ -11,10 +11,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './vitest.setup.ts',
-    include: ['app/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['**/*.integration.test.ts'],
-    coverage: {
-      reporter: ['text', 'html', 'lcov'],
-    },
+    include: ['app/**/*.integration.test.ts'],
+    testTimeout: 15_000,
   },
 });
