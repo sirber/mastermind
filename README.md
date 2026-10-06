@@ -16,6 +16,15 @@ The goal here is to explore coding with AI. [A friend](https://github.com/yvoyer
 - [Prisma ORM](https://www.prisma.io/orm)
 - [PostgreSQL 18](https://www.postgresql.org/)
 
+## UI
+
+The French interface uses React Bootstrap components with direct component imports and
+Bootstrap 5 CSS, loaded once by the root layout. Home, project resources, loading states,
+and error pages share this UI stack. Custom CSS is limited to game branding, responsive
+board sizing, color pions, and feedback pegs; Tailwind is not required or configured.
+The game history retains its semantic ordered list, and sign-in preserves accessible
+labels, keyboard navigation, and email focus on session resolution and browser activation.
+
 ## Specifications
 
 - Must provide an API

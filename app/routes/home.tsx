@@ -1,5 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
+import Alert from 'react-bootstrap/Alert';
+import Badge from 'react-bootstrap/Badge';
+import Button from 'react-bootstrap/Button';
+import Card from 'react-bootstrap/Card';
+import Container from 'react-bootstrap/Container';
+import Form from 'react-bootstrap/Form';
+import InputGroup from 'react-bootstrap/InputGroup';
+import Spinner from 'react-bootstrap/Spinner';
+import Stack from 'react-bootstrap/Stack';
 import type { Route } from './+types/home';
 import type { GameView } from '../application/contracts/GameView';
 import type { Color } from '../domain/game/valueObjects/Color';
@@ -38,6 +47,51 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState('');
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  const focusEmail = useCallback(() => {
+    const input = emailInputRef.current;
+    if (!input || document.visibilityState === 'hidden') return;
+
+    const activeElement = document.activeElement;
+    // Preserve typing, selection, and deliberate keyboard navigation elsewhere.
+    if (
+      activeElement === input ||
+      activeElement?.closest(
+        'input, textarea, select, button, a[href], [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"])'
+      )
+    )
+      return;
+
+    input.focus({ preventScroll: true });
+  }, []);
+
+  const attachEmailInput = useCallback(
+    (input: HTMLInputElement | null) => {
+      emailInputRef.current = input;
+      // The field mounts only after session resolution or logout. Do not wait for
+      // an animation frame, which browsers may suspend while the tab is inactive.
+      if (input) focusEmail();
+    },
+    [focusEmail]
+  );
+
+  useEffect(() => {
+    if (authLoading || player) return;
+
+    const onWindowFocus = (event: FocusEvent) => {
+      // Document/element focus events are not browser-window activation.
+      if (event.target === event.currentTarget) focusEmail();
+    };
+    window.addEventListener('focus', onWindowFocus);
+    window.addEventListener('pageshow', focusEmail);
+    document.addEventListener('visibilitychange', focusEmail);
+    return () => {
+      window.removeEventListener('focus', onWindowFocus);
+      window.removeEventListener('pageshow', focusEmail);
+      document.removeEventListener('visibilitychange', focusEmail);
+    };
+  }, [authLoading, player, focusEmail]);
 
   useEffect(() => {
     let active = true;
@@ -160,8 +214,8 @@ export default function Home() {
   }
 
   return (
-    <main className="game-shell">
-      <header className="game-header">
+    <Container as="main" className="game-shell">
+      <Stack as="header" direction="horizontal" gap={3} className="game-header flex-wrap mb-4">
         <div className="brand-mark" aria-hidden="true">
           M
         </div>
@@ -170,160 +224,190 @@ export default function Home() {
           <h1>Mastermind</h1>
         </div>
         {player && (
-          <div className="account-control">
+          <Stack gap={1} className="account-control align-items-end ms-auto">
             <span>{player.email}</span>
-            <button className="text-button" onClick={signOut} type="button">
+            <Button variant="link" size="sm" className="p-0" onClick={signOut} type="button">
               Déconnexion
-            </button>
-          </div>
+            </Button>
+          </Stack>
         )}
-      </header>
+      </Stack>
 
-      <section className="game-panel" aria-live="polite">
-        {authLoading ? (
-          <p className="loading-state">Vérification de la session…</p>
-        ) : !player ? (
-          <div className="welcome-panel">
-            <p className="eyebrow">Connexion sans mot de passe</p>
-            <h2>Entrez dans la partie.</h2>
-            <p>Connectez-vous avec votre adresse e-mail pour retrouver votre identité de joueur.</p>
-            <form className="login-form" onSubmit={signIn}>
-              <label htmlFor="login-email">Adresse e-mail</label>
-              <input
-                id="login-email"
-                name="email"
-                type="email"
-                autoFocus
-                autoComplete="email"
-                required
-                maxLength={254}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-              <button className="primary-button" disabled={authBusy}>
-                {authBusy ? 'Connexion…' : 'Continuer avec cet e-mail'}
-              </button>
-            </form>
-            <p className="auth-note">
-              Cette version ne vérifie pas que vous contrôlez cette adresse e-mail.
-            </p>
-            {authError && (
-              <p className="error-message" role="alert">
-                {authError}
+      <Card as="section" className="game-panel shadow-sm" aria-live="polite">
+        <Card.Body className="p-3 p-sm-4">
+          {authLoading ? (
+            <Stack direction="horizontal" gap={2} role="status" className="loading-state">
+              <Spinner animation="border" size="sm" aria-hidden="true" />
+              <span>Vérification de la session…</span>
+            </Stack>
+          ) : !player ? (
+            <div className="welcome-panel">
+              <p className="eyebrow">Connexion sans mot de passe</p>
+              <h2>Entrez dans la partie.</h2>
+              <p className="text-body-secondary my-3">
+                Connectez-vous avec votre adresse e-mail pour retrouver votre identité de joueur.
               </p>
-            )}
-          </div>
-        ) : !gameId ? (
-          <div className="welcome-panel">
-            <p className="eyebrow">À vous de jouer</p>
-            <h2>Décodez la combinaison secrète.</h2>
-            <p>
-              Choisissez quatre couleurs. Les pions noirs indiquent une bonne couleur bien placée;
-              les blancs, une bonne couleur mal placée.
-            </p>
-            <button className="primary-button" onClick={startGame} disabled={busy}>
-              {busy ? 'Démarrage…' : 'Nouvelle partie'}
-            </button>
-          </div>
-        ) : !game ? (
-          <p className="loading-state">Chargement de la partie…</p>
-        ) : (
-          <>
-            <div className="game-topline">
-              <div>
-                <p className="eyebrow">Partie en cours</p>
-                <h2>
-                  {game.status === 'won'
-                    ? 'Combinaison trouvée !'
-                    : game.status === 'lost'
-                      ? 'Fin de la partie'
-                      : 'Trouvez le code'}
-                </h2>
-              </div>
-              <span className="attempt-counter">
-                {game.attemptsUsed} / {game.maxAttempts}
-              </span>
+              <Form className="login-form" onSubmit={signIn}>
+                <Form.Group controlId="login-email" className="mb-3">
+                  <Form.Label>Adresse e-mail</Form.Label>
+                  <Form.Control
+                    name="email"
+                    type="email"
+                    ref={attachEmailInput}
+                    autoComplete="email"
+                    required
+                    maxLength={254}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </Form.Group>
+                <Button variant="primary" type="submit" disabled={authBusy}>
+                  {authBusy ? 'Connexion…' : 'Continuer avec cet e-mail'}
+                </Button>
+              </Form>
+              <p className="text-body-secondary small mt-3 mb-0">
+                Cette version ne vérifie pas que vous contrôlez cette adresse e-mail.
+              </p>
+              {authError && (
+                <Alert variant="danger" className="mt-3">
+                  {authError}
+                </Alert>
+              )}
             </div>
+          ) : !gameId ? (
+            <div className="welcome-panel">
+              <p className="eyebrow">À vous de jouer</p>
+              <h2>Décodez la combinaison secrète.</h2>
+              <p className="text-body-secondary my-3">
+                Choisissez quatre couleurs. Les pions noirs indiquent une bonne couleur bien placée;
+                les blancs, une bonne couleur mal placée.
+              </p>
+              <Button variant="primary" onClick={startGame} disabled={busy}>
+                {busy ? 'Démarrage…' : 'Nouvelle partie'}
+              </Button>
+            </div>
+          ) : !game ? (
+            <Stack direction="horizontal" gap={2} role="status" className="loading-state">
+              <Spinner animation="border" size="sm" aria-hidden="true" />
+              <span>Chargement de la partie…</span>
+            </Stack>
+          ) : (
+            <>
+              <Stack
+                direction="horizontal"
+                gap={3}
+                className="game-topline justify-content-between flex-wrap"
+              >
+                <div>
+                  <p className="eyebrow">Partie en cours</p>
+                  <h2>
+                    {game.status === 'won'
+                      ? 'Combinaison trouvée !'
+                      : game.status === 'lost'
+                        ? 'Fin de la partie'
+                        : 'Trouvez le code'}
+                  </h2>
+                </div>
+                <Badge bg="secondary" pill className="text-nowrap">
+                  {game.attemptsUsed} / {game.maxAttempts}
+                </Badge>
+              </Stack>
 
-            {game.status === 'in_progress' && (
-              <form className="guess-form" onSubmit={submitGuess}>
-                {guess.map((color, index) => (
-                  <label className="color-field" key={index}>
-                    <span className="sr-only">Couleur {index + 1}</span>
-                    <select
-                      aria-label={`Couleur ${index + 1}`}
-                      value={color}
-                      onChange={(event) =>
-                        setGuess((previous) =>
-                          previous.map((item, itemIndex) =>
-                            itemIndex === index ? (event.target.value as Color) : item
-                          )
-                        )
-                      }
+              {game.status === 'in_progress' && (
+                <Form
+                  className="d-flex align-items-center gap-2 flex-wrap my-4"
+                  onSubmit={submitGuess}
+                >
+                  {guess.map((color, index) => (
+                    <Form.Group
+                      className="color-field"
+                      controlId={`guess-color-${index}`}
+                      key={index}
                     >
-                      {colors.map((option) => (
-                        <option key={option} value={option}>
-                          {colorLabels[option]}
-                        </option>
-                      ))}
-                    </select>
-                    <span className={`color-dot color-${color}`} aria-hidden="true" />
-                  </label>
-                ))}
-                <button className="primary-button submit-button" disabled={busy}>
-                  {busy ? 'Vérification…' : 'Proposer'}
-                </button>
-              </form>
-            )}
+                      <Form.Label className="visually-hidden">Couleur {index + 1}</Form.Label>
+                      <InputGroup>
+                        <InputGroup.Text>
+                          <span className={`color-dot color-${color}`} aria-hidden="true" />
+                        </InputGroup.Text>
+                        <Form.Select
+                          value={color}
+                          onChange={(event) =>
+                            setGuess((previous) =>
+                              previous.map((item, itemIndex) =>
+                                itemIndex === index ? (event.target.value as Color) : item
+                              )
+                            )
+                          }
+                        >
+                          {colors.map((option) => (
+                            <option key={option} value={option}>
+                              {colorLabels[option]}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </InputGroup>
+                    </Form.Group>
+                  ))}
+                  <Button variant="primary" type="submit" className="submit-button" disabled={busy}>
+                    {busy ? 'Vérification…' : 'Proposer'}
+                  </Button>
+                </Form>
+              )}
 
-            {game.guesses.length > 0 ? (
-              <ol className="guess-history" aria-label="Propositions précédentes">
-                {game.guesses.map((playedGuess, index) => (
-                  <li className="guess-row" key={`${game.id}-${index}`}>
-                    <span className="guess-number">{index + 1}</span>
-                    <span className="guess-colors">
-                      {playedGuess.colors.map((color, colorIndex) => (
-                        <span
-                          key={colorIndex}
-                          className={`color-dot color-${color}`}
-                          aria-label={colorLabels[color]}
-                        />
-                      ))}
-                    </span>
-                    <span className="feedback-pegs" aria-label="Résultat">
-                      {game.feedbacks[index]?.pegs.map((peg, pegIndex) => (
-                        <span key={pegIndex} className={`feedback-dot feedback-${peg}`} />
-                      ))}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="empty-history">Vos propositions apparaîtront ici.</p>
-            )}
+              {game.guesses.length > 0 ? (
+                <ol className="guess-history" aria-label="Propositions précédentes">
+                  {game.guesses.map((playedGuess, index) => (
+                    <li className="guess-row" key={`${game.id}-${index}`}>
+                      <span className="guess-number">{index + 1}</span>
+                      <span className="guess-colors">
+                        {playedGuess.colors.map((color, colorIndex) => (
+                          <span
+                            key={colorIndex}
+                            className={`color-dot color-${color}`}
+                            aria-label={colorLabels[color]}
+                          />
+                        ))}
+                      </span>
+                      <span className="feedback-pegs" aria-label="Résultat">
+                        {game.feedbacks[index]?.pegs.map((peg, pegIndex) => (
+                          <span key={pegIndex} className={`feedback-dot feedback-${peg}`} />
+                        ))}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="empty-history">Vos propositions apparaîtront ici.</p>
+              )}
 
-            {game.status !== 'in_progress' && (
-              <>
-                {game.status === 'lost' && game.solution && (
-                  <p className="solution-message">
-                    Le code était :{' '}
-                    {game.solution.colors.map((color) => colorLabels[color]).join(' · ')}
-                  </p>
-                )}
-                <button className="secondary-button" onClick={startGame} disabled={busy}>
-                  Rejouer
-                </button>
-              </>
-            )}
-          </>
-        )}
-        {error && player && (
-          <p className="error-message" role="alert">
-            {error}
-          </p>
-        )}
-      </section>
+              {game.status !== 'in_progress' && (
+                <>
+                  {game.status === 'lost' && game.solution && (
+                    <p className="solution-message">
+                      Le code était :{' '}
+                      {game.solution.colors.map((color) => colorLabels[color]).join(' · ')}
+                    </p>
+                  )}
+                  <Button
+                    variant="outline-primary"
+                    className="mt-4"
+                    onClick={startGame}
+                    disabled={busy}
+                  >
+                    Rejouer
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+          {error && player && (
+            <Alert variant="danger" className="mt-3">
+              {error}
+            </Alert>
+          )}
+        </Card.Body>
+      </Card>
       <p className="game-footnote">Une combinaison de quatre couleurs, dix essais maximum.</p>
-    </main>
+    </Container>
   );
 }
