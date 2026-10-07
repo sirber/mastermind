@@ -168,10 +168,23 @@ export default function Home() {
   }
 
   async function signOut() {
-    await fetch('/api/session', { method: 'DELETE' });
-    setPlayer(null);
-    setGame(null);
-    setSearchParams({});
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      const response = await fetch('/api/session', { method: 'DELETE' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? 'Impossible de se déconnecter.');
+      }
+      setPlayer(null);
+      setGame(null);
+      setError('');
+      setSearchParams({});
+    } catch (cause) {
+      setAuthError(cause instanceof Error ? cause.message : 'Erreur de déconnexion.');
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   async function playAsGuest() {
@@ -247,7 +260,14 @@ export default function Home() {
         {player && (
           <Stack gap={1} className="account-control align-items-end ms-auto">
             <span>{player.email ?? 'Invité'}</span>
-            <Button variant="link" size="sm" className="p-0" onClick={signOut} type="button">
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0"
+              onClick={signOut}
+              type="button"
+              disabled={authBusy || busy}
+            >
               Déconnexion
             </Button>
           </Stack>
@@ -432,6 +452,11 @@ export default function Home() {
           {error && player && (
             <Alert variant="danger" className="mt-3">
               {error}
+            </Alert>
+          )}
+          {authError && player && (
+            <Alert variant="danger" className="mt-3">
+              {authError}
             </Alert>
           )}
         </Card.Body>

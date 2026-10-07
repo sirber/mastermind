@@ -4,13 +4,14 @@ import type { Feedback } from '../valueObjects/Feedback';
 import type { GameStatus } from '../contracts/GameStatus';
 
 export interface Game {
-  id: string;
-  secretCode: SecretCode;
-  maxAttempts: number;
+  readonly id: string;
+  version: number;
+  readonly secretCode: SecretCode;
+  readonly maxAttempts: number;
   attemptsUsed: number;
   guesses: Guess[];
   feedbacks: Feedback[];
   status: GameStatus;
-  createdAt: Date;
+  readonly createdAt: Date;
   updatedAt: Date;
 }

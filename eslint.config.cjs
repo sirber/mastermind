@@ -1,6 +1,17 @@
-const config = [
+const tsParser = require('@typescript-eslint/parser');
+const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const reactHooks = require('eslint-plugin-react-hooks');
+
+module.exports = [
   {
-    ignores: ['node_modules/**', 'build/**', 'dist/**', '.react-router/**', 'coverage/**'],
+    ignores: [
+      'node_modules/**',
+      'generated/**',
+      'build/**',
+      'dist/**',
+      '.react-router/**',
+      'coverage/**',
+    ],
   },
   {
     files: ['**/*.{js,mjs,cjs,jsx,ts,tsx}'],
@@ -24,13 +35,9 @@ const config = [
       ],
     },
   },
-];
-
-try {
-  const tsParser = require('@typescript-eslint/parser');
-
-  config.push({
+  {
     files: ['**/*.{ts,tsx}'],
+    plugins: { '@typescript-eslint': tsPlugin, 'react-hooks': reactHooks },
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -39,10 +46,15 @@ try {
         },
       },
     },
-    rules: {},
-  });
-} catch (_err) {
-  // Typescript parser is optional for now.
-}
-
-module.exports = config;
+    rules: {
+      ...tsPlugin.configs.recommended.rules,
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+    },
+  },
+];

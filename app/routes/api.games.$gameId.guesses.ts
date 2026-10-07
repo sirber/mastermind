@@ -22,7 +22,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    return Response.json(await submitGuess.handle({ gameId: params.gameId ?? '', playerId, guess }));
+    return Response.json(
+      await submitGuess.handle({ gameId: params.gameId ?? '', playerId, guess })
+    );
   } catch (error) {
     if (error instanceof GameNotFoundError) {
       return Response.json({ error: error.message }, { status: 404 });

@@ -28,7 +28,7 @@ cli:
 
 # Run quality checks inside the `app` service.
 quality:
-    @{{compose}} run --rm app sh -c "bun run quality 2>&1 | grep -v 'envFile.*deprecated' || true"
+    @{{compose}} run --rm app bun run quality; exit $LASTEXITCODE
 
 # Run tests inside the `app` service.
 test:

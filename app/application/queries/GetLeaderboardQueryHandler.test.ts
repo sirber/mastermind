@@ -5,15 +5,16 @@ describe('GetLeaderboardQueryHandler', () => {
   it('returns an empty leaderboard when nobody has won', async () => {
     const repository = { registeredWins: vi.fn().mockResolvedValue([]) };
     await expect(new GetLeaderboardQueryHandler(repository).handle()).resolves.toEqual([]);
+    expect(repository.registeredWins).toHaveBeenCalledWith(100);
   });
 
-  it('ranks wins descending, average guesses ascending, then player ID deterministically', async () => {
+  it('preserves repository ranking and generates stable aliases and sequential ranks', async () => {
     const repository = {
       registeredWins: vi.fn().mockResolvedValue([
-        { playerId: 'z', wins: 2, totalGuesses: 6 },
-        { playerId: 'b', wins: 3, totalGuesses: 12 },
-        { playerId: 'a', wins: 3, totalGuesses: 12 },
         { playerId: 'c', wins: 3, totalGuesses: 6 },
+        { playerId: 'a', wins: 3, totalGuesses: 12 },
+        { playerId: 'b', wins: 3, totalGuesses: 12 },
+        { playerId: 'z', wins: 2, totalGuesses: 6 },
       ]),
     };
     const entries = await new GetLeaderboardQueryHandler(repository).handle();

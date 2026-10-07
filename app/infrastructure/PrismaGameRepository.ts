@@ -3,13 +3,17 @@ import { prisma } from '../prisma';
 import type { GameRepository } from '../application/contracts/GameRepository';
 import type { Game } from '../domain/game/entities/Game';
 import { PersistedGameMapper } from './PersistedGameMapper';
+import { GameConflictError } from '../domain/game/errors/GameConflictError';
+import { GameService } from '../domain/game/services/GameService';
 
 export class PrismaGameRepository implements GameRepository {
   async create(game: Game, playerId: string): Promise<void> {
+    GameService.validateGame(game);
     await prisma.$transaction([
       prisma.game.create({
         data: {
           id: game.id,
+          version: game.version,
           secretCode: game.secretCode as unknown as Prisma.InputJsonValue,
           maxAttempts: game.maxAttempts,
           attemptsUsed: game.attemptsUsed,
@@ -34,16 +38,18 @@ export class PrismaGameRepository implements GameRepository {
   }
 
   async save(game: Game): Promise<void> {
-    await prisma.game.update({
-      where: { id: game.id },
+    GameService.validateGame(game);
+    const result = await prisma.game.updateMany({
+      where: { id: game.id, version: game.version },
       data: {
-        secretCode: game.secretCode as unknown as Prisma.InputJsonValue,
-        maxAttempts: game.maxAttempts,
+        version: { increment: 1 },
         attemptsUsed: game.attemptsUsed,
         guesses: game.guesses as unknown as Prisma.InputJsonValue,
         feedbacks: game.feedbacks as unknown as Prisma.InputJsonValue,
         status: game.status,
       },
     });
+    if (result.count !== 1) throw new GameConflictError();
+    game.version++;
   }
 }

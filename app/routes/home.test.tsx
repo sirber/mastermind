@@ -61,6 +61,7 @@ describe('email sign-in focus', () => {
     );
 
     await user.click(await screen.findByRole('button', { name: 'Déconnexion' }));
+    expect(screen.getByRole('button', { name: 'Déconnexion' })).toBeDisabled();
     expect(screen.queryByLabelText('Adresse e-mail')).not.toBeInTheDocument();
     await act(async () => finishLogout(new Response(null, { status: 204 })));
 
@@ -194,6 +195,55 @@ describe('email sign-in focus', () => {
 });
 
 describe('Bootstrap home UI', () => {
+  it.each(['http', 'network', 'non-json'])(
+    'preserves the player and game after %s logout failure and allows retry',
+    async (failure) => {
+      const game = {
+        id: 'game-1',
+        status: 'in_progress',
+        maxAttempts: 10,
+        attemptsUsed: 0,
+        guesses: [],
+        feedbacks: [],
+      };
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          Response.json({ player: { id: 'player-1', email: 'player@example.com' } })
+        )
+        .mockResolvedValueOnce(Response.json(game));
+      if (failure === 'network') fetchMock.mockRejectedValueOnce(new Error('Network unavailable'));
+      else if (failure === 'non-json')
+        fetchMock.mockResolvedValueOnce(new Response('Gateway error', { status: 502 }));
+      else
+        fetchMock.mockResolvedValueOnce(
+          Response.json({ error: 'Logout unavailable' }, { status: 500 })
+        );
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+      vi.stubGlobal('fetch', fetchMock);
+      render(
+        <MemoryRouter initialEntries={['/?game=game-1']}>
+          <Home />
+        </MemoryRouter>
+      );
+      await screen.findByRole('button', { name: 'Proposer' });
+      await userEvent.click(screen.getByRole('button', { name: 'Déconnexion' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        failure === 'network'
+          ? 'Network unavailable'
+          : failure === 'http'
+            ? 'Logout unavailable'
+            : 'Impossible de se déconnecter.'
+      );
+      expect(screen.getByText('player@example.com')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Proposer' })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Adresse e-mail')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Déconnexion' }));
+      expect(await screen.findByLabelText('Adresse e-mail')).toHaveFocus();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    }
+  );
+
   it('offers optional email sign-in and starts a guest game without collecting an email', async () => {
     const fetchMock = vi
       .fn()

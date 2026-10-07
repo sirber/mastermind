@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { LeaderboardRepository } from '../contracts/LeaderboardRepository';
 import type { LeaderboardEntry } from '../contracts/LeaderboardEntry';
+import { LEADERBOARD_LIMIT } from '../contracts/LeaderboardLimit';
 
 export class GetLeaderboardQueryHandler {
   private readonly repository: LeaderboardRepository;
@@ -10,13 +11,8 @@ export class GetLeaderboardQueryHandler {
   }
 
   async handle(): Promise<LeaderboardEntry[]> {
-    const statistics = await this.repository.registeredWins();
-    statistics.sort(
-      (left, right) =>
-        right.wins - left.wins ||
-        left.totalGuesses / left.wins - right.totalGuesses / right.wins ||
-        (left.playerId < right.playerId ? -1 : left.playerId > right.playerId ? 1 : 0)
-    );
+    // Preserve SQL's exact numeric ordering rather than re-sort rounded JS numbers.
+    const statistics = await this.repository.registeredWins(LEADERBOARD_LIMIT);
     return statistics.map((entry, index) => ({
       rank: index + 1,
       // Hash the random ID, never the email: aliases cannot reveal mailbox identity.

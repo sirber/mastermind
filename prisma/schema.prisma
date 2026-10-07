@@ -22,6 +22,7 @@ model Player {
 
 model Game {
   id           String       @id @default(cuid())
+  version      Int          @default(0)
   secretCode   Json
   maxAttempts  Int          @default(10)
   attemptsUsed Int          @default(0)

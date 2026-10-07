@@ -6,6 +6,8 @@ import type { Guess } from '../domain/game/valueObjects/Guess';
 import type { Feedback } from '../domain/game/valueObjects/Feedback';
 import type { SecretCode } from '../domain/game/valueObjects/SecretCode';
 import { InvalidPersistedGameError } from './errors/InvalidPersistedGameError';
+import { InvalidGameStateError } from '../domain/game/errors/InvalidGameStateError';
+import { GameService } from '../domain/game/services/GameService';
 
 const colors: readonly Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
 const feedbackPegs: readonly FeedbackPeg[] = ['black', 'white', 'empty'];
@@ -27,7 +29,7 @@ function parseColors(value: unknown, gameId: string, field: string): SecretCode[
     return invalid(gameId, field);
   }
 
-  return value.colors as SecretCode['colors'];
+  return [...value.colors] as SecretCode['colors'];
 }
 
 function parseGuesses(value: unknown, gameId: string): Guess[] {
@@ -52,13 +54,13 @@ function parseFeedbacks(value: unknown, gameId: string): Feedback[] {
       return invalid(gameId, field);
     }
 
-    return { pegs: feedback.pegs as Feedback['pegs'] };
+    return { pegs: [...feedback.pegs] as Feedback['pegs'] };
   });
 }
 
 function parseDate(value: unknown, gameId: string, field: string): Date {
   if (!(value instanceof Date) || !Number.isFinite(value.getTime())) return invalid(gameId, field);
-  return value;
+  return new Date(value);
 }
 
 export class PersistedGameMapper {
@@ -67,6 +69,13 @@ export class PersistedGameMapper {
     const gameId = typeof value.id === 'string' && value.id.length > 0 ? value.id : '<unknown>';
 
     if (gameId === '<unknown>') return invalid(gameId, 'id');
+    if (
+      typeof value.version !== 'number' ||
+      !Number.isInteger(value.version) ||
+      value.version < 0
+    ) {
+      return invalid(gameId, 'version');
+    }
     if (
       typeof value.maxAttempts !== 'number' ||
       !Number.isInteger(value.maxAttempts) ||
@@ -94,17 +103,9 @@ export class PersistedGameMapper {
     }
 
     const status = value.status as GameStatus;
-    if (
-      (status === 'in_progress' && value.attemptsUsed >= value.maxAttempts) ||
-      (status === 'won' &&
-        (value.attemptsUsed === 0 || !feedbacks.at(-1)?.pegs.every((peg) => peg === 'black'))) ||
-      (status === 'lost' && value.attemptsUsed !== value.maxAttempts)
-    ) {
-      return invalid(gameId, 'status');
-    }
-
-    return {
+    const game: Game = {
       id: gameId,
+      version: value.version,
       secretCode,
       maxAttempts: value.maxAttempts,
       attemptsUsed: value.attemptsUsed,
@@ -114,5 +115,12 @@ export class PersistedGameMapper {
       createdAt: parseDate(value.createdAt, gameId, 'createdAt'),
       updatedAt: parseDate(value.updatedAt, gameId, 'updatedAt'),
     };
+    try {
+      GameService.validateGame(game);
+    } catch (error) {
+      if (error instanceof InvalidGameStateError) return invalid(gameId, error.field);
+      throw error;
+    }
+    return game;
   }
 }

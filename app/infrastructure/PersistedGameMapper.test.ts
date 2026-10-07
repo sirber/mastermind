@@ -4,6 +4,7 @@ import { PersistedGameMapper } from './PersistedGameMapper';
 
 const validRecord = {
   id: 'game-1',
+  version: 0,
   secretCode: { colors: ['red', 'blue', 'green', 'yellow'] },
   maxAttempts: 10,
   attemptsUsed: 0,
@@ -15,9 +16,18 @@ const validRecord = {
 };
 
 describe('PersistedGameMapper', () => {
+  it('does not expose mutable persisted arrays or dates through the domain model', () => {
+    const record = structuredClone(validRecord);
+    const game = PersistedGameMapper.toDomain(record);
+    game.secretCode.colors[0] = 'orange';
+    game.createdAt.setUTCFullYear(2000);
+    expect(record.secretCode.colors[0]).toBe('red');
+    expect(record.createdAt.getUTCFullYear()).toBe(2026);
+  });
   it('maps valid persisted game data to the domain model', () => {
     expect(PersistedGameMapper.toDomain(validRecord)).toEqual({
       id: 'game-1',
+      version: 0,
       secretCode: { colors: ['red', 'blue', 'green', 'yellow'] },
       maxAttempts: 10,
       attemptsUsed: 0,
@@ -30,6 +40,8 @@ describe('PersistedGameMapper', () => {
   });
 
   it.each([
+    ['negative version', { version: -1 }, 'version'],
+    ['missing version', { version: undefined }, 'version'],
     [
       'unknown color in secret code',
       { secretCode: { colors: ['red', 'blue', 'green', 'cyan'] } },
@@ -69,7 +81,62 @@ describe('PersistedGameMapper', () => {
     };
 
     expect(() => PersistedGameMapper.toDomain(record)).toThrowError(
-      new InvalidPersistedGameError('game-1', 'status')
+      new InvalidPersistedGameError('game-1', 'feedbacks[0].pegs')
     );
+  });
+
+  it('rejects forged winning feedback for a wrong guess', () => {
+    expect(() =>
+      PersistedGameMapper.toDomain({
+        ...validRecord,
+        attemptsUsed: 1,
+        status: 'won',
+        guesses: [{ colors: ['orange', 'orange', 'orange', 'orange'] }],
+        feedbacks: [{ pegs: ['black', 'black', 'black', 'black'] }],
+      })
+    ).toThrowError(new InvalidPersistedGameError('game-1', 'feedbacks[0].pegs'));
+  });
+
+  it.each(['in_progress', 'lost', 'abandoned'])(
+    'rejects a winning guess in a %s game',
+    (status) => {
+      expect(() =>
+        PersistedGameMapper.toDomain({
+          ...validRecord,
+          maxAttempts: 1,
+          attemptsUsed: 1,
+          status,
+          guesses: [validRecord.secretCode],
+          feedbacks: [{ pegs: ['black', 'black', 'black', 'black'] }],
+        })
+      ).toThrowError(new InvalidPersistedGameError('game-1', 'status'));
+    }
+  );
+
+  it('rejects history after a winning guess even when the final guess also wins', () => {
+    expect(() =>
+      PersistedGameMapper.toDomain({
+        ...validRecord,
+        attemptsUsed: 2,
+        status: 'won',
+        guesses: [validRecord.secretCode, validRecord.secretCode],
+        feedbacks: Array(2).fill({ pegs: ['black', 'black', 'black', 'black'] }),
+      })
+    ).toThrowError(new InvalidPersistedGameError('game-1', 'guesses[0]'));
+  });
+
+  it.each(['won', 'lost', 'abandoned'])('accepts valid %s history', (status) => {
+    const winning = status === 'won';
+    const record = {
+      ...validRecord,
+      maxAttempts: status === 'abandoned' ? 2 : 1,
+      attemptsUsed: 1,
+      status,
+      guesses: [
+        winning ? validRecord.secretCode : { colors: ['orange', 'orange', 'orange', 'orange'] },
+      ],
+      feedbacks: [{ pegs: Array(4).fill(winning ? 'black' : 'empty') }],
+    };
+    expect(PersistedGameMapper.toDomain(record).status).toBe(status);
   });
 });

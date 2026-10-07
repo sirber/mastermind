@@ -7,9 +7,62 @@ import type { SubmitGuessResult } from '../contracts/SubmitGuessResult';
 
 import { GameOverError } from '../errors/GameOverError';
 import { MaxAttemptsError } from '../errors/MaxAttemptsError';
+import { InvalidGameStateError } from '../errors/InvalidGameStateError';
 
 export class GameService {
-  static CODE_LENGTH = 4;
+  static readonly CODE_LENGTH = 4;
+
+  private static validateColors(colors: readonly Color[], field: string): void {
+    const allowed: readonly Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+    if (
+      !Array.isArray(colors) ||
+      colors.length !== this.CODE_LENGTH ||
+      !colors.every((color) => allowed.includes(color))
+    ) {
+      throw new InvalidGameStateError(field);
+    }
+  }
+
+  static validateGame(game: Game): void {
+    const invalid = (field: string): never => {
+      throw new InvalidGameStateError(field);
+    };
+    this.validateColors(game.secretCode.colors, 'secretCode.colors');
+    if (!Number.isInteger(game.version) || game.version < 0) invalid('version');
+    if (!Number.isInteger(game.maxAttempts) || game.maxAttempts < 1) invalid('maxAttempts');
+    if (
+      !Number.isInteger(game.attemptsUsed) ||
+      game.attemptsUsed < 0 ||
+      game.attemptsUsed > game.maxAttempts ||
+      game.guesses.length !== game.attemptsUsed ||
+      game.feedbacks.length !== game.attemptsUsed
+    )
+      invalid('attemptsUsed');
+
+    let won = false;
+    game.guesses.forEach((guess, index) => {
+      this.validateColors(guess.colors, `guesses[${index}].colors`);
+      const expected = this.calculateFeedback(game.secretCode, guess);
+      if (
+        game.feedbacks[index].pegs.length !== this.CODE_LENGTH ||
+        expected.pegs.some((peg, pegIndex) => peg !== game.feedbacks[index].pegs[pegIndex])
+      )
+        invalid(`feedbacks[${index}].pegs`);
+      if (expected.pegs.every((peg) => peg === 'black')) {
+        if (index !== game.guesses.length - 1) invalid(`guesses[${index}]`);
+        won = true;
+      }
+    });
+    const exhausted = game.attemptsUsed === game.maxAttempts;
+    if (
+      (game.status === 'won' && !won) ||
+      (game.status !== 'won' && won) ||
+      (game.status === 'lost' && !exhausted) ||
+      ((game.status === 'in_progress' || game.status === 'abandoned') && exhausted) ||
+      !['won', 'lost', 'in_progress', 'abandoned'].includes(game.status)
+    )
+      invalid('status');
+  }
 
   static createGame(id: string, maxAttempts: number = 10): Game {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
@@ -24,6 +77,7 @@ export class GameService {
 
     return {
       id,
+      version: 0,
       secretCode: { colors: secretColors as [Color, Color, Color, Color] },
       maxAttempts,
       attemptsUsed: 0,
@@ -36,6 +90,8 @@ export class GameService {
   }
 
   static calculateFeedback(secretCode: SecretCode, guess: Guess): Feedback {
+    this.validateColors(secretCode.colors, 'secretCode.colors');
+    this.validateColors(guess.colors, 'guess.colors');
     const CODE_LENGTH = 4;
     const secretColors = secretCode.colors;
     const guessColors = guess.colors;
@@ -91,10 +147,11 @@ export class GameService {
       throw new MaxAttemptsError();
     }
 
+    this.validateGame(game);
     const feedback = this.calculateFeedback(game.secretCode, guess);
 
-    game.guesses.push(guess);
-    game.feedbacks.push(feedback);
+    game.guesses.push({ colors: [...guess.colors] });
+    game.feedbacks.push({ pegs: [...feedback.pegs] });
     game.attemptsUsed++;
     game.updatedAt = new Date();
 

@@ -12,6 +12,7 @@ function g(colors: string[]): Guess {
 function createTestGame(secretColors: string[]): Game {
   return {
     id: 'test-game',
+    version: 0,
     secretCode: { colors: secretColors as [Color, Color, Color, Color] },
     maxAttempts: 10,
     attemptsUsed: 0,
@@ -28,6 +29,43 @@ function countPegs(fb: { pegs: FeedbackPeg[] }, type: FeedbackPeg): number {
 }
 
 describe('GameService', () => {
+  it.each([
+    ['version', { version: -1 }],
+    ['attemptsUsed', { attemptsUsed: 1 }],
+    ['status', { status: 'won' }],
+    ['secretCode.colors', { secretCode: { colors: ['cyan', 'blue', 'green', 'yellow'] } }],
+  ])('validates domain %s', (field, override) => {
+    const game = { ...createTestGame(['red', 'blue', 'green', 'yellow']), ...override } as Game;
+    expect(() => GameService.validateGame(game)).toThrow(`Invalid game state: ${field}`);
+  });
+
+  it('rejects invalid guess colors before changing domain state', () => {
+    const game = createTestGame(['red', 'blue', 'green', 'yellow']);
+    expect(() => GameService.submitGuess(game, g(['cyan', 'red', 'red', 'red']))).toThrow(
+      'Invalid game state: guess.colors'
+    );
+    expect(game.attemptsUsed).toBe(0);
+  });
+  it('does not retain caller-owned guess or result feedback arrays', () => {
+    const game = createTestGame(['red', 'blue', 'green', 'yellow']);
+    const guess = g(['red', 'red', 'red', 'red']);
+    const result = GameService.submitGuess(game, guess);
+    guess.colors[0] = 'orange';
+    result.feedback!.pegs[0] = 'empty';
+    expect(game.guesses[0].colors[0]).toBe('red');
+    expect(game.feedbacks[0].pegs[0]).toBe('black');
+  });
+
+  it('rejects contradictory domain history before modifying it', () => {
+    const game = createTestGame(['red', 'blue', 'green', 'yellow']);
+    game.guesses.push(g(['red', 'blue', 'green', 'yellow']));
+    game.feedbacks.push({ pegs: ['black', 'black', 'black', 'black'] });
+    game.attemptsUsed = 1;
+    expect(() => GameService.submitGuess(game, g(['red', 'red', 'red', 'red']))).toThrow(
+      'Invalid game state: status'
+    );
+    expect(game.attemptsUsed).toBe(1);
+  });
   describe('submitGuess', () => {
     describe('correct guess', () => {
       it('returns all black pegs when guess matches secret code exactly', () => {
@@ -135,8 +173,10 @@ describe('GameService', () => {
       });
 
       it('rejects guess when max attempts reached', () => {
-        const game = createTestGame(['red', 'blue', 'green', 'yellow']);
-        game.maxAttempts = 1;
+        const game = {
+          ...createTestGame(['red', 'blue', 'green', 'yellow']),
+          maxAttempts: 1,
+        };
         game.attemptsUsed = 1;
 
         expect(() => GameService.submitGuess(game, g(['red', 'blue', 'green', 'yellow']))).toThrow(

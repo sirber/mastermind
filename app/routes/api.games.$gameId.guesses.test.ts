@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { action } from './api.games.$gameId.guesses';
 import { submitGuess } from '../api/gameHandlers';
+import { GameConflictError } from '../domain/game/errors/GameConflictError';
 
 vi.mock('../api/gameHandlers', () => ({
   startGame: { handle: vi.fn() },
@@ -12,6 +13,19 @@ vi.mock('../api/playerSession', () => ({ playerIdFromRequest: vi.fn(() => 'playe
 
 describe('POST /api/games/:gameId/guesses', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('returns 409 when another request has already saved this version', async () => {
+    vi.mocked(submitGuess.handle).mockRejectedValueOnce(new GameConflictError());
+    const response = await action({
+      params: { gameId: 'game-1' },
+      request: new Request('http://local/api/games/game-1/guesses', {
+        method: 'POST',
+        body: JSON.stringify({ colors: ['red', 'red', 'red', 'red'] }),
+      }),
+    } as never);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: new GameConflictError().message });
+  });
 
   it('rejects malformed guesses', async () => {
     const response = await action({

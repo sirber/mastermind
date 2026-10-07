@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { loader as getGameAction } from './api.games.$gameId';
@@ -21,6 +21,7 @@ const games = new PrismaGameRepository();
 
 describe('game API integration', () => {
   afterEach(async () => {
+    vi.restoreAllMocks();
     if (createdGameIds.length > 0) {
       await prisma.game.deleteMany({ where: { id: { in: createdGameIds } } });
     }
@@ -33,6 +34,63 @@ describe('game API integration', () => {
 
   afterAll(async () => {
     await prisma.$disconnect();
+  });
+
+  it('atomically saves only one of two concurrent API submissions and permits a reloaded retry', async () => {
+    const login = await sessionAction({
+      request: new Request('http://local/api/session', {
+        method: 'POST',
+        body: JSON.stringify({ guest: true }),
+      }),
+    } as never);
+    const { player } = await login.json();
+    createdPlayerIds.push(player.id);
+    const cookie = login.headers.get('Set-Cookie')!.split(';')[0];
+    const created = await startGameAction({
+      request: new Request('http://local/api/games', {
+        method: 'POST',
+        headers: { Cookie: cookie },
+      }),
+    } as never);
+    const { gameId } = await created.json();
+    createdGameIds.push(gameId);
+    const original = await games.findById(gameId, player.id);
+    const colors = original!.secretCode.colors.map((color) => (color === 'red' ? 'blue' : 'red'));
+    // Barrier: both requests must load version 0 before either attempts to save.
+    const find = PrismaGameRepository.prototype.findById;
+    let loaded = 0;
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const spy = vi
+      .spyOn(PrismaGameRepository.prototype, 'findById')
+      .mockImplementation(async function (this: PrismaGameRepository, id, playerId) {
+        const snapshot = await find.call(this, id, playerId);
+        if (++loaded === 2) release();
+        await barrier;
+        return snapshot;
+      });
+    const submit = () =>
+      submitGuessAction({
+        params: { gameId },
+        request: new Request(`http://local/api/games/${gameId}/guesses`, {
+          method: 'POST',
+          headers: { Cookie: cookie },
+          body: JSON.stringify({ colors }),
+        }),
+      } as never);
+    const responses = await Promise.all([submit(), submit()]);
+    spy.mockRestore();
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    const persisted = await games.findById(gameId, player.id);
+    expect(persisted).toMatchObject({ version: 1, attemptsUsed: 1, guesses: [{ colors }] });
+    expect((await submit()).status).toBe(200);
+    expect(await games.findById(gameId, player.id)).toMatchObject({
+      version: 2,
+      attemptsUsed: 2,
+      guesses: [{ colors }, { colors }],
+    });
   });
 
   it('persists games created and updated through the API handlers', async () => {
@@ -170,6 +228,7 @@ describe('game API integration', () => {
     const registered = await identity(false);
     const tied = await identity(false);
     const efficient = await identity(false);
+    const fewerWins = await identity(false);
     expect(guest.email).toBeNull();
     const resumed = await sessionLoader({
       request: new Request('http://local/api/session', { headers: { Cookie: guest.cookie } }),
@@ -188,6 +247,10 @@ describe('game API integration', () => {
     const registeredGame = await win(registered, 2);
     await win(tied, 2);
     await win(efficient);
+    await win(registered, 2);
+    await win(tied, 2);
+    await win(efficient);
+    await win(fewerWins);
     // Unfinished and lost games must not affect wins or average guesses.
     const unfinished = await start(registered);
     const lost = await start(registered);
@@ -227,11 +290,22 @@ describe('game API integration', () => {
     }
 
     const statistics = await new PrismaLeaderboardRepository().registeredWins();
+    const bounded = await new PrismaLeaderboardRepository().registeredWins(2);
+    expect(bounded).toEqual(statistics.slice(0, 2));
+    expect(statistics.length).toBeLessThanOrEqual(100);
+    const sorted = [...statistics].sort(
+      (a, b) =>
+        b.wins - a.wins ||
+        a.totalGuesses / a.wins - b.totalGuesses / b.wins ||
+        (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0)
+    );
+    expect(statistics).toEqual(sorted);
     expect(statistics.filter((entry) => createdPlayerIds.includes(entry.playerId))).toEqual(
       expect.arrayContaining([
-        { playerId: registered.id, wins: 1, totalGuesses: 2 },
-        { playerId: tied.id, wins: 1, totalGuesses: 2 },
-        { playerId: efficient.id, wins: 1, totalGuesses: 1 },
+        { playerId: registered.id, wins: 2, totalGuesses: 4 },
+        { playerId: tied.id, wins: 2, totalGuesses: 4 },
+        { playerId: efficient.id, wins: 2, totalGuesses: 2 },
+        { playerId: fewerWins.id, wins: 1, totalGuesses: 1 },
       ])
     );
     expect(
@@ -242,12 +316,15 @@ describe('game API integration', () => {
     const alias = (id: string) =>
       `Joueur ${createHash('sha256').update(id).digest('hex').slice(0, 16)}`;
     const ranked = body.entries.filter((entry: { displayName: string }) =>
-      [registered, tied, efficient].some((player) => entry.displayName === alias(player.id))
+      [registered, tied, efficient, fewerWins].some(
+        (player) => entry.displayName === alias(player.id)
+      )
     );
     const tieOrder = [registered.id, tied.id].sort();
     expect(ranked.map((entry: { displayName: string }) => entry.displayName)).toEqual([
       alias(efficient.id),
       ...tieOrder.map(alias),
+      alias(fewerWins.id),
     ]);
     expect(JSON.stringify(body)).not.toContain('@');
     expect(JSON.stringify(body)).not.toContain(guest.id);
